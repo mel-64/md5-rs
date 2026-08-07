@@ -5,7 +5,7 @@ use std::process::exit;
 
 mod tests;
 
-// This writes the global constant CONSTANT[u32; 2] containing `S` and `K`.
+// This writes the global constant CONSTANTS[u32; 2] containing `S` and `K`.
 // It has to be done this way, as K needs iteration to be constructed and can therefore not be
 // inlined if it's not included in the constructed form.
 // This saves a few CPU cycles and therefore should speed up the execution speed marginally.
