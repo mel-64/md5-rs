@@ -29,7 +29,6 @@ fn main() {
 const S: [u32; 64] = {:?};
 const K: [u32; 64] = {:?};
 const CONSTANTS: [[u32; 64]; 2] = [S, K];
-
             ",
             S, k
         ),
