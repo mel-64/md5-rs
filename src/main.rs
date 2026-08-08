@@ -140,35 +140,25 @@ fn prep_input(input: &mut ByteArray) {
     (0..8).for_each(|i| input.push(len.wrapping_shr(8 * i) as u8)); //Lil endian
 }
 
-fn process_block(block: &[u8], state: &mut [u32; 4], constants: [[u32; 64]; 2]) {
+fn process_block(block: &[u8; 64], state: &mut [u32; 4], constants: [[u32; 64]; 2]) {
+    // Block is 64 bytes long
     let old_state: [u32; 4] = *state;
     let [mut a, mut b, mut c, mut d] = [state[0], state[1], state[2], state[3]];
     let [s, k] = constants;
-    let chunks: Vec<&[u8]> = (0..block.len())
+    let chunks: Vec<u32> = (0..block.len())
         .step_by(4)
-        .map(|i| &block[i..i + 4])
-        .collect();
-
-    let chunks: Vec<u32> = chunks
-        .iter()
-        .map(|c| (0..4).into_iter().map(|i| (c[i] as u32) << (i * 8)).sum()) // Lil endian
+        .map(|i| u32::from_le_bytes(block[i..i + 4].try_into().unwrap()))
         .collect();
 
     for i in 0..64 {
-        let [mut f, mut g] = [0_u32; 2];
-        if i < 16 {
-            f = (b & c) | ((!b) & d);
-            g = i;
-        } else if i < 32 {
-            f = (d & b) | ((!d) & c);
-            g = (5 * i + 1) % 16
-        } else if i < 48 {
-            f = b ^ c ^ d;
-            g = (3 * i + 5) % 16;
-        } else if i < 64 {
-            f = c ^ (b | (!d));
-            g = (7 * i) % 16;
-        }
+        let [mut f, mut g] = match i {
+            0..16 => [(b & c) | (!b & d), i],
+            16..32 => [(d & b) | (!d & c), 5 * i + 1],
+            32..48 => [b ^ c ^ d, 3 * i + 5],
+            48..64 => [c ^ (b | !d), 7 * i],
+            _ => unreachable!(),
+        };
+        g %= 16;
 
         f += a + k[i as usize] + chunks[g as usize];
         a = d; // a=d
