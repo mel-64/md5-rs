@@ -141,12 +141,13 @@ fn prep_input(input: &mut ByteArray) {
 
 fn process_block(block: &[u8; 64], state: &mut [u32; 4], constants: [[u32; 64]; 2]) {
     // Block is 64 bytes long
-    let old_state: [u32; 4] = *state;
     let [mut a, mut b, mut c, mut d] = [state[0], state[1], state[2], state[3]];
     let [s, k] = constants;
-    let chunks: Vec<u32> = (0..block.len())
+
+    let chunks: Vec<u32> = block
+        .windows(4)
         .step_by(4)
-        .map(|i| u32::from_le_bytes(block[i..i + 4].try_into().unwrap()))
+        .map(|b| u32::from_le_bytes(b.try_into().unwrap()))
         .collect();
 
     for i in 0..64 {
@@ -166,8 +167,8 @@ fn process_block(block: &[u8; 64], state: &mut [u32; 4], constants: [[u32; 64]; 
         b += f.rotate_left(s[i as usize]); // b=b+f.rotate(s[i])
     }
 
-    state[0] = old_state[0] + a;
-    state[1] = old_state[1] + b;
-    state[2] = old_state[2] + c;
-    state[3] = old_state[3] + d;
+    state[0] += a;
+    state[1] += b;
+    state[2] += c;
+    state[3] += d;
 }
