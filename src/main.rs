@@ -136,8 +136,7 @@ fn prep_input(input: &mut ByteArray) {
 
     let padding_amount: usize = (56 - (input.len() % 64) + 64) % 64; // Can probs be optimized, lol
     input.append(&mut vec![0_u8; padding_amount]);
-
-    (0..8).for_each(|i| input.push(len.wrapping_shr(8 * i) as u8)); //Lil endian
+    input.append(&mut u128::to_le_bytes(len).to_vec());
 }
 
 fn process_block(block: &[u8; 64], state: &mut [u32; 4], constants: [[u32; 64]; 2]) {
