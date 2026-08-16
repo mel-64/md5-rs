@@ -43,18 +43,18 @@ fn get_hash(reader: &mut BufReader<File>) -> u128 {
 
     prep_input(&mut input); // Todo: pad and append on last chunk
 
-    for i in 0..(input.len() / 64) {
+    for b in input.data.windows(64).step_by(64) {
         // Todo: use chunks from BufReader
-        process_block(&input.data[i * 64..i * 64 + 64], &mut state, CONSTANTS);
+        process_block(b.try_into().unwrap(), &mut state, CONSTANTS);
     }
-    u128::from_be_bytes(
-        state
-            .iter()
-            .flat_map(|w| w.to_le_bytes())
-            .collect::<Vec<u8>>()
-            .try_into()
-            .unwrap(),
-    ) // hack to revert byte order and turn into lil endian
+    let state: [u8; 16] = state
+        .iter()
+        .flat_map(|w| w.to_le_bytes())
+        .collect::<Vec<u8>>()
+        .try_into()
+        .unwrap();
+
+    u128::from_be_bytes(state)
 }
 
 struct ByteArray {
