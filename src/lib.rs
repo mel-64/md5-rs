@@ -11,29 +11,7 @@ mod tests;
 include!(concat!(env!("OUT_DIR"), "/consts.rs"));
 
 #[allow(arithmetic_overflow)]
-fn main() {
-    let input_file_path = std::env::args().nth(1).unwrap_or("-".to_owned());
-
-    let mut reader = match create_reader(&input_file_path) {
-        Ok(r) => r,
-        Err(e) => {
-            let _ = writeln!(
-                io::stderr(),
-                "{}: {}: {}",
-                std::env::args().next().unwrap(),
-                input_file_path,
-                e
-            );
-            exit(1);
-        }
-    };
-
-    let res = get_hash(&mut reader);
-
-    let _ = writeln!(io::stdout(), "{res:032x}  {input_file_path}");
-}
-
-fn get_hash(reader: &mut BufReader<File>) -> u128 {
+pub fn get_hash(reader: &mut BufReader<File>) -> u128 {
     let mut state: [u32; 4] = [0x67452301, 0xefcdab89_u32, 0x98badcfe_u32, 0x10325476_u32];
     let mut len: u128 = 0;
     let mut remainder: Vec<u8> = vec![];
@@ -72,7 +50,7 @@ fn get_hash(reader: &mut BufReader<File>) -> u128 {
     u128::from_be_bytes(state)
 }
 
-fn create_reader(file_path: &str) -> std::io::Result<BufReader<File>> {
+pub fn create_reader(file_path: &str) -> std::io::Result<BufReader<File>> {
     let file = if file_path == "-" {
         File::open("/dev/stdin")?
     } else {
