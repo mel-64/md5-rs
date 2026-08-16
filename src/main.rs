@@ -1,6 +1,5 @@
-use std::fmt;
 use std::fs::File;
-use std::io::{self, BufReader, Error, ErrorKind, Read, Write};
+use std::io::{self, BufReader, Error, ErrorKind, Read, Seek, Write};
 use std::process::exit;
 
 mod tests;
@@ -36,17 +35,33 @@ fn main() {
 
 fn get_hash(reader: &mut BufReader<File>) -> u128 {
     let mut state: [u32; 4] = [0x67452301, 0xefcdab89_u32, 0x98badcfe_u32, 0x10325476_u32];
-
-    let mut input = ByteArray::new(vec![0_u8; 0]);
-
-    reader.read_to_end(&mut input.data).unwrap(); // Todo: chunked read
-
-    prep_input(&mut input); // Todo: pad and append on last chunk
-
-    for b in input.data.windows(64).step_by(64) {
-        // Todo: use chunks from BufReader
-        process_block(b.try_into().unwrap(), &mut state, CONSTANTS);
+    let mut len: u128 = 0;
+    let mut remainder: Vec<u8> = vec![];
+    loop {
+        let mut res = [0u8; 64];
+        let read = reader.read_exact(&mut res);
+        match read {
+            Err(e) => {
+                if e.kind() == std::io::ErrorKind::UnexpectedEof {
+                    let _ = reader.rewind();
+                    let _ = reader.seek_relative(len as i64);
+                    len += reader.read_to_end(&mut remainder).unwrap() as u128;
+                    break;
+                } else {
+                    let _ = write!(io::stderr(), "Unexpected error while reading file: {:?}", e);
+                    exit(1);
+                }
+            }
+            Ok(v) => v,
+        }
+        len += 64;
+        process_block(&res, &mut state, CONSTANTS);
     }
+
+    for block in get_footer(remainder, len) {
+        process_block(&block, &mut state, CONSTANTS);
+    }
+
     let state: [u8; 16] = state
         .iter()
         .flat_map(|w| w.to_le_bytes())
@@ -55,65 +70,6 @@ fn get_hash(reader: &mut BufReader<File>) -> u128 {
         .unwrap();
 
     u128::from_be_bytes(state)
-}
-
-struct ByteArray {
-    data: Vec<u8>,
-}
-
-struct ByteArrayIter<'a> {
-    data: &'a ByteArray,
-    index: usize,
-}
-
-impl ByteArray {
-    fn new(data: Vec<u8>) -> Self {
-        ByteArray { data }
-    }
-
-    fn iter(&self) -> ByteArrayIter<'_> {
-        ByteArrayIter {
-            data: self,
-            index: 0,
-        }
-    }
-
-    fn len(&self) -> usize {
-        self.data.len()
-    }
-
-    fn append(&mut self, other: &mut Vec<u8>) {
-        self.data.append(other)
-    }
-
-    fn push(&mut self, other: u8) {
-        self.data.push(other)
-    }
-}
-
-impl<'a> Iterator for ByteArrayIter<'a> {
-    type Item = &'a u8;
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.index < self.data.data.len() {
-            self.index += 1;
-            Some(&self.data.data[self.index - 1])
-        } else {
-            None
-        }
-    }
-}
-
-impl fmt::Display for ByteArray {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            self.iter()
-                .map(|b| format!("{b:#04x}"))
-                .collect::<Vec<String>>()
-                .join(" ")
-        )
-    }
 }
 
 fn create_reader(file_path: &str) -> std::io::Result<BufReader<File>> {
@@ -125,18 +81,27 @@ fn create_reader(file_path: &str) -> std::io::Result<BufReader<File>> {
     if file.metadata()?.is_dir() {
         return Err(Error::new(ErrorKind::IsADirectory, "Is a directory"));
     }
-    let reader = BufReader::with_capacity(64, file); // 64 byte => 512 bit
+    let reader = BufReader::with_capacity(32768, file); // 64 byte => 512 bit
     Ok(reader)
 }
 
-fn prep_input(input: &mut ByteArray) {
-    let len = (input.len() as u128 * 8) % 2_u128.pow(64);
+fn get_footer(block: Vec<u8>, len: u128) -> Vec<[u8; 64]> {
+    let mut res: Vec<[u8; 64]> = vec![];
+    let mut block = block.clone();
+    let len = (len * 8) as u64;
 
-    input.push(0x80_u8);
+    block.push(0x80_u8);
 
-    let padding_amount: usize = (56 - (input.len() % 64) + 64) % 64; // Can probs be optimized, lol
-    input.append(&mut vec![0_u8; padding_amount]);
-    input.append(&mut u128::to_le_bytes(len).to_vec());
+    if block.len() > 56 {
+        block.resize(64, 0u8);
+        res.push(block.try_into().unwrap());
+        block = vec![0u8; 56];
+    } else {
+        block.resize(56, 0u8);
+    }
+    block.extend(len.to_le_bytes());
+    res.push(block.try_into().unwrap());
+    res
 }
 
 fn process_block(block: &[u8; 64], state: &mut [u32; 4], constants: [[u32; 64]; 2]) {
