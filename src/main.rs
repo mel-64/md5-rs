@@ -109,10 +109,10 @@ fn process_block(block: &[u8; 64], state: &mut [u32; 4], constants: [[u32; 64]; 
     let [mut a, mut b, mut c, mut d] = [state[0], state[1], state[2], state[3]];
     let [s, k] = constants;
 
-    let chunks: Vec<u32> = block
-        .windows(4)
+    let chunks: Vec<u32> = (0..block.len())
         .step_by(4)
-        .map(|b| u32::from_le_bytes(b.try_into().unwrap()))
+        .into_iter()
+        .map(|i| u32::from_le_bytes(block[i..(i + 4)].try_into().unwrap()))
         .collect();
 
     for i in 0..64 {
