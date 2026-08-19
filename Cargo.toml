@@ -8,6 +8,8 @@ license = "MIT"
 # None :D
 
 [dev-dependencies]
+criterion = "0.8.2"
+getrandom = "0.4.3"
 tempfile = "3"
 
 [profile.dev]
@@ -15,3 +17,8 @@ overflow-checks = false
 
 [profile.release]
 lto = "fat"
+
+
+[[bench]]
+name = "bench-rand"
+harness = false
