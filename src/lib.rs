@@ -82,6 +82,7 @@ fn get_footer(block: Vec<u8>, len: u128) -> Vec<[u8; 64]> {
     res
 }
 
+#[inline(always)]
 fn process_block(block: &[u8; 64], state: &mut [u32; 4], constants: [[u32; 64]; 2]) {
     // Block is 64 bytes long
     let [mut a, mut b, mut c, mut d] = [state[0], state[1], state[2], state[3]];
