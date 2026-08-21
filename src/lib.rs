@@ -90,7 +90,6 @@ fn process_block(block: &[u8; 64], state: &mut [u32; 4], constants: [[u32; 64]; 
 
     let chunks: Vec<u32> = (0..block.len())
         .step_by(4)
-        .into_iter()
         .map(|i| u32::from_le_bytes(block[i..(i + 4)].try_into().unwrap()))
         .collect();
 
