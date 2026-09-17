@@ -4,7 +4,7 @@ use std::process::exit;
 
 mod tests;
 
-// This writes the global constant CONSTANTS[u32; 2] containing `S` and `K`.
+// This writes the global constantS `S` and `K`.
 // It has to be done this way, as K needs iteration to be constructed and can therefore not be
 // inlined if it's not included in the constructed form.
 // This saves a few CPU cycles and therefore should speed up the execution speed marginally.
@@ -33,11 +33,11 @@ pub fn get_hash(reader: &mut BufReader<File>) -> u128 {
             Ok(v) => v,
         }
         len += 64;
-        process_block(&res, &mut state, CONSTANTS);
+        process_block(&res, &mut state);
     }
 
     for block in get_footer(remainder, len) {
-        process_block(&block, &mut state, CONSTANTS);
+        process_block(&block, &mut state);
     }
 
     let state: [u8; 16] = state
@@ -83,10 +83,8 @@ fn get_footer(block: Vec<u8>, len: u128) -> Vec<[u8; 64]> {
 }
 
 #[inline(always)]
-fn process_block(block: &[u8; 64], state: &mut [u32; 4], constants: [[u32; 64]; 2]) {
-    // Block is 64 bytes long
+fn process_block(block: &[u8; 64], state: &mut [u32; 4]) {
     let [mut a, mut b, mut c, mut d] = [state[0], state[1], state[2], state[3]];
-    let [s, k] = constants;
 
     let chunks: Vec<u32> = (0..block.len())
         .step_by(4)
@@ -103,11 +101,11 @@ fn process_block(block: &[u8; 64], state: &mut [u32; 4], constants: [[u32; 64]; 
         };
         g %= 16;
 
-        f += a + k[i as usize] + chunks[g as usize];
+        f += a + K[i as usize] + chunks[g as usize];
         a = d; // a=d
         d = c; // d=c
         c = b; // c=b
-        b += f.rotate_left(s[i as usize]); // b=b+f.rotate(s[i])
+        b += f.rotate_left(S[i as usize]); // b=b+f.rotate(s[i])
     }
 
     state[0] += a;
